@@ -1,5 +1,10 @@
 #!/bin/zsh
 
+# Install Colima and Docker
+brew install colima
+brew install docker
+brew install docker-compose
+
 # --- Configuration ---
 # Import variables from .env
 set -e
@@ -30,7 +35,7 @@ if colima status "$COLIMA_PROFILE" 2>&1 | grep -qi "not running"; then
     # If VM is not running and does not exist
     else
         echo "-> Colima $COLIMA_PROFILE does not exist. Creating it..."
-        colima start --COLIMA_profile "$COLIMA_PROFILE" --cpu "$CPU" --memory "$MEM" --disk "$DISK"
+        colima start --profile "$COLIMA_PROFILE" --cpu "$CPU" --memory "$MEM" --disk "$DISK"
     fi
 # If VM is running
 else
@@ -51,16 +56,28 @@ if docker ps | grep -qi "$DOCKER_PROFILE"; then
 else 
     echo "-> $DOCKER_PROFILE Container is not running"
     echo "-> Starting $DOCKER_PROFILE from $YML_FILE"
+    # Wait for Docker daemon socket inside Colima to be available
+    until docker info >/dev/null 2>&1; do
+    echo "Waiting for Docker daemon..."
+    sleep 2
+    done
     docker-compose -f "$YML_FILE" up -d
 fi
 
-# --- Final status check ---
+# --- Final Colima status check ---
+echo ""
+echo "== Colima status =="
+colima list
+
+# --- Final Docker status check ---
 echo ""
 echo "== Docker status =="
-docker ps
+docker info
 
 # --- DB connection test ---
 echo ""
 echo ""
 echo "== DB Test =="
+docker restart postgres_db
+docker port postgres_db
 python3 "$DB_CONN_TEST"
