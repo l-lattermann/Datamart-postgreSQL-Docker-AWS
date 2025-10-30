@@ -1,5 +1,9 @@
-# Environment variables
-scratches/postgres_poc/.env
+# Ignore project tree file
+tree.txt
+
+# Ignore .env files
+.env
+.env.*
 
 # Ignore venv
 .venv/
@@ -12,3 +16,4 @@ __pycache__/
 
 # Ignore DS_Store files
 .DS_Store
+.env
