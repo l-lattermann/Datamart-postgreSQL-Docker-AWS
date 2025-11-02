@@ -66,11 +66,36 @@ def fetch_all_tbl_names():
     # Return the table name list
     return table_name_list
 
+# ---------------------------------------------------------------------------
+# Table column names discovery
+# ---------------------------------------------------------------------------
+def fetch_db_schema_list():
+    # Connect to database
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Discover tables
+    table_name_list = fetch_all_tbl_names()
+
+    # Init dict: table_name → DataFrame
+    table_col_dict = {table_name: None for table_name in table_name_list}
+
+    # Fetch column metadata for each table
+    for table_name in table_name_list:
+        cur.execute(sqlrepo.FETCH_TABLE_COLUMNS, (table_name,))
+        result = cur.fetchall()
+        
+        # Append column names to table names
+        table_col_dict[table_name] = [column_name[0] for column_name in result]
+    
+    # Return the dictionary
+    return table_col_dict
+
 
 # ---------------------------------------------------------------------------
 # Schema metadata dump
 # ---------------------------------------------------------------------------
-def fetch_db_schema():
+def fetch_db_schema_DfOutput():
     """
     Retrieve all tables and their column metadata from the database.
 
@@ -143,10 +168,8 @@ def dump_database_contents():
             pd.DataFrame(columns=column_names, data=result).set_index(column_names[0])
         )
 
-        # diagnostic output
-        print(tbl_dump_df_dict[table])
-
     # Close cursor (connection intentionally left as in original logic)
     cur.close()
 
     # Return the dataframe dict for later use
+    return tbl_dump_df_dict

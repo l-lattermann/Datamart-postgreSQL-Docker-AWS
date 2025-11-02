@@ -24,6 +24,7 @@ import random
 import datetime
 from pathlib import Path
 import sys
+from psycopg2 import sql
 
 # ---------------------------------------------------------------------------
 # Third-party / extra imports
@@ -42,7 +43,9 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # ---------------------------------------------------------------------------
 import src.db.data_lists as seeds
 from src.db.connection import db_connection  # kept although not used in current funcs
-
+import src.db.sql_repo as sqlrepo
+from src.db.utils.db_helpers import get_tbl_contents_as_str
+from src.utils.logger import logger
 
 # ---------------------------------------------------------------------------
 # ACCOUNTS
@@ -52,11 +55,11 @@ def gen_dummydata_accounts():
     Fill dummy data for accounts table.
 
     Returns:
-        email_adresses, first_names, last_names, roles, timestamps
+        email_addresses, first_names, last_names, roles, timestamps
     """
     # first names
     first_names = []
-    for dummy_id in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata):
         name = ""
         syllable_ammount = random.randint(seeds.fn_min_sylls, seeds.fn_max_sylls)
         for _ in range(syllable_ammount):
@@ -65,7 +68,7 @@ def gen_dummydata_accounts():
 
     # last names
     last_names = []
-    for dummy_id in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata):
         name = ""
         syllable_ammount = random.randint(seeds.ln_min_sylls, seeds.ln_max_sylls)
         for _ in range(syllable_ammount):
@@ -73,21 +76,26 @@ def gen_dummydata_accounts():
         last_names.append(name)
 
     # email addresses
-    email_adresses = []
-    for dummy_id in range(seeds.num_gen_dummydata):
-        email_adress = (
-            first_names[dummy_id]
+    emails = []
+    counter = 0
+    while counter < seeds.num_gen_dummydata:
+        email_address = (
+            first_names[counter]
             + "."
-            + last_names[dummy_id]
+            + last_names[counter]
             + "@"
             + random.choice(seeds.email_domains)
         )
-        email_adresses.append(email_adress)
+        if email_address not in emails:
+            emails.append(email_address)
+            counter += 1
+        else:
+            continue
 
     # timestamps
     time_delta = seeds.stop_timestamp - seeds.start_timestamp
     timestamps = []
-    for dummy_id in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata):
         random_time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
@@ -96,13 +104,27 @@ def gen_dummydata_accounts():
 
     # roles
     roles = []
-    for dummy_id in range(seeds.num_gen_dummydata - seeds.admin_count):
+    for _ in range(seeds.num_gen_dummydata - seeds.admin_count):
         roles.append(random.choice(["guest", "host"]))
-    for dummy_id in range(seeds.admin_count):
+    for _ in range(seeds.admin_count):
         roles.append("admin")
 
-    return email_adresses, first_names, last_names, roles, timestamps
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('accounts'))
+    cur.execute(query)
+    data = zip(emails, first_names, last_names, roles, timestamps)
+    cur.executemany(sqlrepo.INSERT_ACCOUNTS, data)
+    conn.commit()
+    conn.close()
 
+    # Test and log
+    logger.info("Sample data inserted into accounts table:")
+    logger.info(get_tbl_contents_as_str('accounts'))
+
+    # Return for later use
+    return emails, first_names, last_names, roles, timestamps
 
 # ---------------------------------------------------------------------------
 # CREDENTIALS
@@ -115,7 +137,7 @@ def gen_dummydata_credentials():
         password_hash, password_updated_at
     """
     password_hash = []
-    for dummy_id in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata):
         password = "".join(
             random.choices(
                 "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()",
@@ -128,13 +150,44 @@ def gen_dummydata_credentials():
     password_updated_at = []
     time_delta = seeds.stop_timestamp - seeds.start_timestamp
     timestamps = []
-    for dummy_id in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata):
         random_time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
         random_timestamp = seeds.start_timestamp + random_time_step
         timestamps.append(random_timestamp)
         password_updated_at.append(random_timestamp)
+
+
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Clear existing data
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('credentials'))
+    cur.execute(query)
+    
+    # Get Id column name
+    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, ('accounts',))
+    id_column_name = cur.fetchall()
+    id_column_name = id_column_name[0][0] # Unpack list of tuples
+
+    # Get ID's with ID colum name
+    query = sql.SQL(sqlrepo.FETCH_IDS).format(
+    col=sql.Identifier(f'{id_column_name}'),
+    tbl=sql.Identifier('accounts')
+    )
+    cur.execute(query)
+    account_ids = cur.fetchall()
+    account_ids = [item[0] for item in account_ids]  # Unpack list of tuples
+    data = zip(account_ids, password_hash, password_updated_at)
+    cur.executemany(sqlrepo.INSERT_CREDENTIALS, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into credentials table:")
+    logger.info(get_tbl_contents_as_str('credentials'))
 
     return password_hash, password_updated_at
 
@@ -175,6 +228,20 @@ def gen_dummydata_addresses():
         postal_code.append(postal)
         countries.append(country_name)
 
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('addresses'))
+    cur.execute(query)
+    data = zip(line1, line2, cities, postal_code, countries)
+    cur.executemany(sqlrepo.INSERT_ADDRESSES, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into addresses table:")
+    logger.info(get_tbl_contents_as_str('addresses'))
+
     return line1, line2, cities, postal_code, countries
 
 
@@ -193,6 +260,31 @@ def gen_dummydata_accommodations():
     is_active = []
     created_at = []
 
+    # host_account_id
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Clear existing data
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('accommodations'))
+    cur.execute(query)
+    
+    # Get Id column name from accounts table
+    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, ('accounts',))
+    id_column_name = cur.fetchall()
+    id_column_name = id_column_name[0][0] # Unpack list of tuples
+
+    # Get ID's with ID colum name
+    query = sql.SQL(sqlrepo.FETCH_HOST_IDS).format(
+    col=sql.Identifier(f'{id_column_name}'),
+    tbl=sql.Identifier('accounts')
+    )
+    cur.execute(query)
+    host_account_ids = cur.fetchall()
+    host_account_ids = [item[0] for item in host_account_ids]  # Unpack list of tuples
+
+    # Select a randwom host account id list matching num_gen_dummydata
+    host_account_ids = [random.choice(host_account_ids) for _ in range(seeds.num_gen_dummydata)]
+
     # titles
     for _ in range(seeds.num_gen_dummydata):
         title = [
@@ -204,6 +296,21 @@ def gen_dummydata_accommodations():
         ]
         titles.append(" ".join(title))
         print(title)
+    
+    # address_id
+    # Get Id column name from accounts table
+    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, ('addresses',))
+    id_column_name = cur.fetchall()
+    id_column_name = id_column_name[0][0] # Unpack list of tuples
+
+    # Get ID's with ID colum name
+    query = sql.SQL(sqlrepo.FETCH_IDS).format(
+    col=sql.Identifier(f'{id_column_name}'),
+    tbl=sql.Identifier('addresses')
+    )
+    cur.execute(query)
+    address_ids = cur.fetchall()
+    address_ids = [item[0] for item in address_ids]  # Unpack list of tuples
 
     # prices
     for _ in range(seeds.num_gen_dummydata):
@@ -223,6 +330,20 @@ def gen_dummydata_accommodations():
         random_timestamp = seeds.start_timestamp + random_time_step
         created_at.append(random_timestamp)
 
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('accommodations'))
+    cur.execute(query)
+    data = zip(host_account_ids, titles, address_ids, price_cents, is_active, created_at)
+    cur.executemany(sqlrepo.INSERT_ACCOMMODATIONS, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into accommodations table:")
+    logger.info(get_tbl_contents_as_str('accommodations'))
+
     return titles, price_cents, is_active, created_at
 
 
@@ -240,7 +361,7 @@ def gen_dummydata_images():
     storage_keys = []
     created_at = []
 
-    for _ in range(seeds.num_gen_dummydata):
+    for _ in range(seeds.num_gen_dummydata*4):  # More images than other tables
         # mime
         mime = random.choice(seeds.image_mimes)
         mimes.append(mime)
@@ -260,6 +381,20 @@ def gen_dummydata_images():
         )
         storage_key += f".{mime.split('/')[1]}"
         storage_keys.append(storage_key)
+
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('images'))
+    cur.execute(query)
+    data = zip(mimes, storage_keys, created_at)
+    cur.executemany(sqlrepo.INSERT_IMAGES, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into images table:")
+    logger.info(get_tbl_contents_as_str('images'))
 
     return mimes, storage_keys, created_at
 
@@ -365,3 +500,22 @@ def gen_dummydata_notifications():
     Fill dummy data for notifications table.
     """
     pass
+
+
+
+
+#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=#=
+
+
+
+gen_dummydata_accounts()
+gen_dummydata_credentials()
+gen_dummydata_addresses()
+gen_dummydata_accommodations()
+gen_dummydata_images()
+
+get_tbl_contents_as_str('accounts')
+get_tbl_contents_as_str('credentials')
+get_tbl_contents_as_str('addresses')
+get_tbl_contents_as_str('accommodations')
+get_tbl_contents_as_str('images')

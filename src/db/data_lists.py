@@ -1,16 +1,38 @@
+"""
+data_lists.py
+
+Central seed/config module for dummy data generation.
+
+Provides:
+- global meta settings (row count, admin count, time window, password length)
+- address/geography seed data (cities, streets, countries, address terms)
+- person/account seed data (first/last name syllables, email domains)
+- accommodation name generator words
+- image-related seed data
+- calendar horizon
+"""
+
 # ============================================================
 # META / GLOBAL SETTINGS
 # ============================================================
 import datetime
 
-# Number of entries to create for each table
+# number of entries to create per table
 num_gen_dummydata = 40
+
+# number of admin accounts to reserve
 admin_count = 3
+
+# uniform timestamp window for all generators
 start_timestamp = datetime.datetime(2022, 1, 1)
 stop_timestamp = datetime.datetime(2025, 12, 31)
+
+# length of generated password strings
 pwd_hash_length = 32
 
 """
+Target schema reminder (for mapping seeds → tables):
+
 addresses(id, line1, line2, city, postal_code, country)
 amenities(id, name, category)
 accommodations(id, host_account_id, title, address_id, price_cents, is_active, created_at)
@@ -36,21 +58,21 @@ notifications(id, account_id, payload, sent_at)
 # GEO / ADDRESS DATA
 # ============================================================
 
-# Postal code dictionary for some example cities in various countries
+# city → postal code
 city_postal = {
-    "berlin": "10115",          # Germany
-    "paris": "75001",           # France
-    "madrid": "28001",          # Spain
-    "rome": "00184",            # Italy
-    "amsterdam": "1012 WX",     # Netherlands
-    "vienna": "1010",           # Austria
-    "zurich": "8001",           # Switzerland
-    "oslo": "0150",             # Norway
-    "prague": "110 00",         # Czech Republic
-    "copenhagen": "1050"        # Denmark
+    "berlin": "10115",
+    "paris": "75001",
+    "madrid": "28001",
+    "rome": "00184",
+    "amsterdam": "1012 WX",
+    "vienna": "1010",
+    "zurich": "8001",
+    "oslo": "0150",
+    "prague": "110 00",
+    "copenhagen": "1050",
 }
 
-# Country dictionary for some example countries
+# city → country
 city_country = {
     "berlin": "germany",
     "paris": "france",
@@ -61,24 +83,42 @@ city_country = {
     "zurich": "switzerland",
     "oslo": "norway",
     "prague": "czech republic",
-    "copenhagen": "denmark"
+    "copenhagen": "denmark",
 }
 
-# Streets per city
+# city → list of streets
 city_streets = {
-    "berlin": ["unter den linden", "friedrichstraße", "karl-marx-allee", "kurfürstendamm", "potsdamer platz"],
-    "paris": ["rue de rivoli", "avenue des champs-élysées", "boulevard saint-germain", "rue mouffetard", "rue de la paix"],
-    "madrid": ["gran vía", "calle de alcalá", "paseo del prado", "calle mayor", "plaza de españa"],
+    "berlin": [
+        "unter den linden",
+        "friedrichstraße",
+        "karl-marx-allee",
+        "kurfürstendamm",
+        "potsdamer platz",
+    ],
+    "paris": [
+        "rue de rivoli",
+        "avenue des champs-élysées",
+        "boulevard saint-germain",
+        "rue mouffetard",
+        "rue de la paix",
+    ],
+    "madrid": [
+        "gran vía",
+        "calle de alcalá",
+        "paseo del prado",
+        "calle mayor",
+        "plaza de españa",
+    ],
     "rome": ["via del corso", "via nazionale", "via condotti", "via veneto", "piazza navona"],
     "amsterdam": ["damrak", "kalverstraat", "leidsestraat", "prinsengracht", "herengracht"],
     "vienna": ["karntner straße", "mariahilfer straße", "graben", "ringstraße", "naschmarktgasse"],
     "zurich": ["bahnhofstrasse", "langstrasse", "niederdorfstrasse", "augustinergasse", "seefeldstrasse"],
     "oslo": ["karl johans gate", "bogstadveien", "torggata", "akersgata", "grünerløkka"],
     "prague": ["wenceslas square", "narodni trida", "parizska", "celetna", "vaclavske namesti"],
-    "copenhagen": ["stroget", "nyhavn", "vestergade", "norrebrogade", "osterbrogade"]
+    "copenhagen": ["stroget", "nyhavn", "vestergade", "norrebrogade", "osterbrogade"],
 }
 
-# City-specific address terms
+# city → (term for building, term for unit)
 city_address_terms = {
     "berlin": ["wohnung", "haustür"],
     "paris": ["appartement", "porte"],
@@ -89,31 +129,78 @@ city_address_terms = {
     "zurich": ["wohnung", "eingang"],
     "oslo": ["leilighet", "inngang"],
     "prague": ["byt", "vchod"],
-    "copenhagen": ["lejlighed", "opgang"]
+    "copenhagen": ["lejlighed", "opgang"],
 }
 
 # ============================================================
-# PERSON / ACCOUNT DUMMY DATA
+# PERSON / ACCOUNT SEEDS
 # ============================================================
 
+# first-name building blocks
 first_name_syllables = [
-    "roxy", "lola", "ruby", "max", "cassie",
-    "nina", "jett", "lexi", "vera", "trixie",
-    "rico", "gigi", "zane", "luna", "dante",
-    "cleo", "raven", "jade", "mila", "axel",
-    "kai", "enzo", "finn", "jax", "ryder",
-    "romeo", "blake", "luca", "troy", "asher"
+    "roxy",
+    "lola",
+    "ruby",
+    "max",
+    "cassie",
+    "nina",
+    "jett",
+    "lexi",
+    "vera",
+    "trixie",
+    "rico",
+    "gigi",
+    "zane",
+    "luna",
+    "dante",
+    "cleo",
+    "raven",
+    "jade",
+    "mila",
+    "axel",
+    "kai",
+    "enzo",
+    "finn",
+    "jax",
+    "ryder",
+    "romeo",
+    "blake",
+    "luca",
+    "troy",
+    "asher",
 ]
 fn_min_sylls, fn_max_sylls = 1, 1
 
+# last-name building blocks
 last_name_syllables = [
-    "wig", "gle", "pants", "snort", "ington", "bork", "fluff",
-    "bottom", "sniff", "blaster", "face", "dozer", "puff",
-    "tastrophe", "sauce", "smash", "nugget", "bucket",
-    "snuggle", "muffin", "von", "mc", "the", "nator"
+    "wig",
+    "gle",
+    "pants",
+    "snort",
+    "ington",
+    "bork",
+    "fluff",
+    "bottom",
+    "sniff",
+    "blaster",
+    "face",
+    "dozer",
+    "puff",
+    "tastrophe",
+    "sauce",
+    "smash",
+    "nugget",
+    "bucket",
+    "snuggle",
+    "muffin",
+    "von",
+    "mc",
+    "the",
+    "nator",
 ]
 ln_min_sylls, ln_max_sylls = 1, 3
 
+# mail domains for identity generation
 email_domains = [
     "spicyinbox.com",
     "luvmail.net",
@@ -123,59 +210,111 @@ email_domains = [
     "cupidconnect.club",
     "hotbeans.online",
     "saucypigeon.lol",
-    "midnightmsg.xyz"
+    "midnightmsg.xyz",
 ]
 
 # ============================================================
 # ACCOMMODATION NAME GENERATION
 # ============================================================
 accomodation_title_words_dict = {
-
-# adjectives for overall description
-'adjectives_general' : [
-    "deranged", "glorious", "crusty", "juicy", "feral",
-    "moist", "sparkly", "delirious", "grumpy", "suspicious",
-    "flamboyant", "chunky", "chaotic", "greasy", "magnificent"
-],
-
-# accommodation nouns
-'accommodation_nouns' : [
-    "shack", "palace", "dumpster", "lair", "bunker",
-    "yurt", "situation", "compound", "crib", "shed",
-    "mansion", "toilet", "dojo", "fortress", "nest"
-],
-
-# location connectors
-'location_connectors' : [
-    "in the middle of", "next to", "right behind", "under", "overlooking",
-    "adjacent to", "across from", "beneath", "lost inside", "deep within"
-],
-
-# descriptive adjectives for locations
-'adjectives_location' : [
-    "cursed", "radioactive", "shady", "chaotic", "slippery",
-    "fermented", "haunted", "illegal", "drippy", "glorious",
-    "unholy", "sticky", "vibrating", "derelict", "spark-coated"
-],
-
-# funny or imaginary place names
-'place_names' : [
-    "yeet canyon", "dumpster lagoon", "boink mountain", "cringe valley", "snacc swamp",
-    "bongo desert", "dripfield", "meme gulch", "goober bay", "fizzle hill",
-    "sauce plains", "burp island", "blorb forest", "void beach", "chonk cliffs"
-]
+    # generic adjectives
+    "adjectives_general": [
+        "deranged",
+        "glorious",
+        "crusty",
+        "juicy",
+        "feral",
+        "moist",
+        "sparkly",
+        "delirious",
+        "grumpy",
+        "suspicious",
+        "flamboyant",
+        "chunky",
+        "chaotic",
+        "greasy",
+        "magnificent",
+    ],
+    # accommodation nouns
+    "accommodation_nouns": [
+        "shack",
+        "palace",
+        "dumpster",
+        "lair",
+        "bunker",
+        "yurt",
+        "situation",
+        "compound",
+        "crib",
+        "shed",
+        "mansion",
+        "toilet",
+        "dojo",
+        "fortress",
+        "nest",
+    ],
+    # connectors for "location" part
+    "location_connectors": [
+        "in the middle of",
+        "next to",
+        "right behind",
+        "under",
+        "overlooking",
+        "adjacent to",
+        "across from",
+        "beneath",
+        "lost inside",
+        "deep within",
+    ],
+    # adjectives for locations
+    "adjectives_location": [
+        "cursed",
+        "radioactive",
+        "shady",
+        "chaotic",
+        "slippery",
+        "fermented",
+        "haunted",
+        "illegal",
+        "drippy",
+        "glorious",
+        "unholy",
+        "sticky",
+        "vibrating",
+        "derelict",
+        "spark-coated",
+    ],
+    # fun/fantasy place names
+    "place_names": [
+        "yeet canyon",
+        "dumpster lagoon",
+        "boink mountain",
+        "cringe valley",
+        "snacc swamp",
+        "bongo desert",
+        "dripfield",
+        "meme gulch",
+        "goober bay",
+        "fizzle hill",
+        "sauce plains",
+        "burp island",
+        "blorb forest",
+        "void beach",
+        "chonk cliffs",
+    ],
 }
 
 # ============================================================
-# IMAGE DUMMY DATA
+# IMAGE / MEDIA DATA
 # ============================================================
 image_mimes = [
     "image/jpeg",
     "image/png",
-    "image/webp"
+    "image/webp",
 ]
 
 # ============================================================
-# IMAGE DUMMY DATA
+# CALENDAR / AVAILABILITY
 # ============================================================
+# how many days ahead to generate calendar entries
 calendar_look_ahead = 365

@@ -1,208 +1,239 @@
-# Test all the dynamic seed functions
+"""
+test_gen_seed_data.py
+
+Pytest suite to verify that all dynamic seed generators in src.db.gen_seed_data
+produce the correct number of items, valid value ranges, and expected formats.
+
+Covers:
+- accounts
+- credentials
+- addresses
+- accommodations
+- images
+Stubs for: calendar, payments, bookings, reviews, conversations, messages, payouts.
+"""
+
+# ---------------------------------------------------------------------------
+# Stdlib imports
+# ---------------------------------------------------------------------------
 import datetime
 import re
-import src.db.gen_seed_data as farmer
-import src.db.data_lists as seeds
 import logging
 
+# ---------------------------------------------------------------------------
+# Internal imports
+# ---------------------------------------------------------------------------
+import src.db.gen_seed_data as farmer
+import src.db.data_lists as seeds
 
 
+# ---------------------------------------------------------------------------
+# accounts
+# ---------------------------------------------------------------------------
 def test_gen_dummydata_accounts():
     """
-    email: test if number of entities is correct,
-    first_name:  test if number of entities is correct,
-    last_name:  test if number of entities is correct, 
-    role:  test if number of entities is correct, only users and hosts and 3 admins,
-    created_at:  test if number of entities is correct, datatype is correct, range is correct
+    email:         count
+    first_name:    count
+    last_name:     count
+    role:          count + content (guest|host + N admins)
+    created_at:    count + dtype + range
     """
-    # Get the dummy data
     email_adresses, first_names, last_names, roles, timestamps = farmer.gen_dummydata_accounts()
-    # Create iterable for easy handling
-    data = [email_adresses, first_names, last_names, roles, timestamps]
-    # Check count
-    for item in data:
-        assert seeds.num_gen_dummydata == len(item)
-    
-    # Sanity check
-    for i in range(10):
-        logging.info(data[0][i])
-        logging.info(data[3][i])
-        logging.info(data[4][i])
-    logging.info('')
-    # Check roles
-    assert data[3].count('admin') == seeds.admin_count
-    # Check timestamp dtype
-    for item in data[4]:
-        assert type(item) == datetime.datetime
-    # Check timestamp range
-    for date in data[4]:
-        assert seeds.start_timestamp <= date <= seeds.stop_timestamp
 
+    data = [email_adresses, first_names, last_names, roles, timestamps]
+
+    # count check
+    for item in data:
+        assert len(item) == seeds.num_gen_dummydata
+
+    # Check if first and last name matches email
+    for email, first_name, last_name in zip(email_adresses, first_names, last_names):
+        assert first_name in email
+        assert last_name in email
+
+    # sanity log
+    for i in range(10):
+        logging.info(email_adresses[i])
+        logging.info(roles[i])
+        logging.info(timestamps[i])
+    logging.info("")
+
+    # role check
+    assert roles.count("admin") == seeds.admin_count
+
+    # dtype + range
+    for ts in timestamps:
+        assert isinstance(ts, datetime.datetime)
+        assert seeds.start_timestamp <= ts <= seeds.stop_timestamp
+
+
+# ---------------------------------------------------------------------------
+# credentials
+# ---------------------------------------------------------------------------
 def test_gen_dummydata_credentials():
     """
-    password_hash: test if number of entities is correct,
-    password_updated_at: test if number of entities is correct, datatype is correct, range is correct
+    password_hash:       count + length
+    password_updated_at: count + dtype + range
     """
-    # Get the dummy data
     password_hash, password_updated_at = farmer.gen_dummydata_credentials()
-    # Create iterable for easy handling
     data = [password_hash, password_updated_at]
-    # Check count
-    for item in data:
-        assert seeds.num_gen_dummydata == len(item)
-    
-    # Sanity check
-    for i in range(10):
-        logging.info(data[0][i])
-        logging.info(data[1][i])
-    logging.info('')
 
-    # Check password hash length
-    for pwd in data[0]:
+    # count check
+    for item in data:
+        assert len(item) == seeds.num_gen_dummydata
+
+    # sanity log
+    for i in range(10):
+        logging.info(password_hash[i])
+        logging.info(password_updated_at[i])
+    logging.info("")
+
+    # password length
+    for pwd in password_hash:
         assert len(pwd) == seeds.pwd_hash_length
 
-    # Check timestamp dtype
-    for item in data[1]:
-        assert type(item) == datetime.datetime
-    # Check timestamp range
-    for date in data[1]:
-        assert seeds.start_timestamp <= date <= seeds.stop_timestamp
+    # dtype + range
+    for ts in password_updated_at:
+        assert isinstance(ts, datetime.datetime)
+        assert seeds.start_timestamp <= ts <= seeds.stop_timestamp
 
+    # keep inner stub as in original code (logic unchanged)
     def test_gen_dummydata_amenities():
         pass
 
+
+# ---------------------------------------------------------------------------
+# addresses
+# ---------------------------------------------------------------------------
 def test_gen_dummydata_addresses():
-    '''
-    Test function checking the generated output from gen_dummydata_addresses.
-
-    '''
+    """
+    Verify generated address data.
+    """
     line1, line2, city, postal_code, country = farmer.gen_dummydata_addresses()
-    # Create iterable for easy handling
     data = [line1, line2, city, postal_code, country]
-    # Check count
+
+    # count check
     for item in data:
-        assert seeds.num_gen_dummydata == len(item)
+        assert len(item) == seeds.num_gen_dummydata
 
-    # Sanity check
+    # sanity log
     for i in range(10):
-        logging.info(data[0][i])
-        logging.info(data[1][i])
-        logging.info(data[2][i])
-        logging.info(data[3][i])
-        logging.info(data[4][i])
-    logging.info('')
+        logging.info(line1[i])
+        logging.info(line2[i])
+        logging.info(city[i])
+        logging.info(postal_code[i])
+        logging.info(country[i])
+    logging.info("")
 
-    # Check country names
-    for country in data[4]:
-        assert country in seeds.city_country.values()
+    # value domain check
+    for c in country:
+        assert c in seeds.city_country.values()
 
+
+# ---------------------------------------------------------------------------
+# accommodations
+# ---------------------------------------------------------------------------
 def test_gen_dummydata_accommodations():
-    '''
-    Test function checking the generated output from gen_dummydata_accommodations.
-    '''
+    """
+    Verify generated accommodation data.
+    """
     title, price_cents, is_active, created_at = farmer.gen_dummydata_accommodations()
-    # Create iterable for easy handling
     data = [title, price_cents, is_active, created_at]
-    # Check count
-    for item in data:
-        assert seeds.num_gen_dummydata == len(item)
-    # Sanity check
-    for i in range(10):
-        logging.info(data[0][i])
-        logging.info(data[1][i])
-        logging.info(data[2][i])
-        logging.info(data[3][i])
-    logging.info('')
 
-def test_gen_dummydata_images():
-    '''
-    Test function checking the generated output from gen_dummydata_images.
-    '''
-    # Get the dummy data
-    mime, storage_key, created_at = farmer.gen_dummydata_images()
-    # Create iterable for easy handling
-    data = [mime, storage_key, created_at]
-    # Check count
+    # count check
     for item in data:
-        assert seeds.num_gen_dummydata == len(item) 
-    # Sanity check
+        assert len(item) == seeds.num_gen_dummydata
+
+    # sanity log
     for i in range(10):
-        logging.info(data[0][i])
-        logging.info(data[1][i])
-        logging.info(data[2][i])
-    logging.info('')
-    # Check timestamp dtype
-    for item in data[2]:
-        assert type(item) == datetime.datetime
-    # Check timestamp range
-    for date in data[2]:
-        assert seeds.start_timestamp <= date <= seeds.stop_timestamp
-    # Check storage key format (simple regex for demo purposes)
-    for key in data[1]:
+        logging.info(title[i])
+        logging.info(price_cents[i])
+        logging.info(is_active[i])
+        logging.info(created_at[i])
+    logging.info("")
+
+
+# ---------------------------------------------------------------------------
+# images
+# ---------------------------------------------------------------------------
+def test_gen_dummydata_images():
+    """
+    Verify generated image data.
+    """
+    mime, storage_key, created_at = farmer.gen_dummydata_images()
+    data = [mime, storage_key, created_at]
+
+    # count check
+    for item in data:
+        assert len(item) == seeds.num_gen_dummydata
+
+    # sanity log
+    for i in range(10):
+        logging.info(mime[i])
+        logging.info(storage_key[i])
+        logging.info(created_at[i])
+    logging.info("")
+
+    # dtype + range
+    for ts in created_at:
+        assert isinstance(ts, datetime.datetime)
+        assert seeds.start_timestamp <= ts <= seeds.stop_timestamp
+
+    # storage key format
+    for key in storage_key:
         assert re.match(r"^images/[a-f0-9\-]{36}\.[a-z]{3,4}$", key)
 
+
+# ---------------------------------------------------------------------------
+# stubs for not-yet-implemented generators
+# ---------------------------------------------------------------------------
 def test_gen_dummydata_accommodation_calendar():
-    '''
-    Test function checking the generated output from gen_dummydata_accommodation_calendar.
-    '''
     pass
+
+
 def test_gen_dummydata_payments():
-    '''
-    Test function checking the generated output from gen_dummydata_payments.
-    '''
     pass
+
+
 def test_gen_dummydata_bookings():
-    '''
-    Test function checking the generated output from gen_dummydata_bookings.
-    '''
     pass
+
+
 def test_gen_dummydata_reviews():
-    '''
-    Test function checking the generated output from gen_dummydata_reviews.
-    '''
     pass
+
+
 def test_gen_dummydata_review_images():
-    '''
-    Test function checking the generated output from gen_dummydata_review_images.
-    '''
     pass
+
+
 def test_gen_dummydata_conversations():
-    '''
-    Test function checking the generated output from gen_dummydata_conversations.
-    '''
     pass
+
+
 def test_gen_dummydata_messages():
-    '''
-    Test function checking the generated output from gen_dummydata_messages.
-    '''
     pass
+
+
 def test_gen_dummydata_payment_methods():
-    '''
-    Test function checking the generated output from gen_dummydata_payment_methods.
-    '''
     pass
+
+
 def test_gen_dummydata_credit_cards():
-    '''
-    Test function checking the generated output from gen_dummydata_credit_cards.
-    '''
     pass
+
+
 def test_gen_dummydata_paypal():
-    '''
-    Test function checking the generated output from gen_dummydata_paypal.
-    '''
     pass
+
+
 def test_gen_dummydata_payout_accounts():
-    '''
-    Test function checking the generated output from gen_dummydata_payout_accounts.
-    '''
     pass
+
+
 def test_gen_dummydata_payouts():
-    '''
-    Test function checking the generated output from gen_dummydata_payouts.
-    '''
     pass
+
+
 def test_gen_dummydata_notifications():
-    '''
-    Test function checking the generated output from gen_dummydata_notifications.
-    '''
     pass
