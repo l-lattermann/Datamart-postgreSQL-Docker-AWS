@@ -85,7 +85,16 @@ FETCH_HOST_IDS = """
     """
 
 # ============================================================================
-# 5. Table-specific INSERT templates (without ID columns)
+# 5. Retrieve table ID's with where condition
+# ============================================================================
+FETCH_IDS_WHERE = """
+    SELECT {col}
+    FROM {tbl}
+    WHERE {where};
+    """
+
+# ============================================================================
+# 6. Table-specific INSERT templates (without ID columns)
 # ============================================================================
 
 INSERT_PAYOUT_ACCOUNTS = """

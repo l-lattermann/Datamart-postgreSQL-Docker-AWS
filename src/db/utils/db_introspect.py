@@ -26,16 +26,15 @@ from psycopg2 import sql
 
 # ---------------------------------------------------------------------------
 # Path/bootstrap
-# Go two levels up (src/db → project root) so imports work when run as script.
+# Go two levels up (src/db/utils → project root) so imports work when run as script.
 # ---------------------------------------------------------------------------
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # ---------------------------------------------------------------------------
 # Internal imports
 # ---------------------------------------------------------------------------
 from src.db.connection import db_connection
-from src.utils.logger import logger
 from src.db import sql_repo as sqlrepo
 
 

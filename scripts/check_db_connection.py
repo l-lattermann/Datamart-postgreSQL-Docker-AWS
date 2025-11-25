@@ -30,7 +30,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Internal imports
 # ---------------------------------------------------------------------------
 from src.db.connection import check_connection
-from src.db.utils.db_introspect import get_db_schema
+from src.db.utils.db_introspect import fetch_db_schema_list
 
 
 # ---------------------------------------------------------------------------
@@ -38,5 +38,5 @@ from src.db.utils.db_introspect import get_db_schema
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     ok = check_connection()
-    get_db_schema()
+    fetch_db_schema_list()
     sys.exit(0 if ok else 1)

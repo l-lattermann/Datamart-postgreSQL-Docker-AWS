@@ -38,22 +38,22 @@ def test_gen_dummydata_accounts():
     role:          count + content (guest|host + N admins)
     created_at:    count + dtype + range
     """
-    email_adresses, first_names, last_names, roles, timestamps = farmer.gen_dummydata_accounts()
+    email_addresses, first_names, last_names, roles, timestamps = farmer.gen_dummydata_accounts()
 
-    data = [email_adresses, first_names, last_names, roles, timestamps]
+    data = [email_addresses, first_names, last_names, roles, timestamps]
 
     # count check
     for item in data:
         assert len(item) == seeds.num_gen_dummydata
 
     # Check if first and last name matches email
-    for email, first_name, last_name in zip(email_adresses, first_names, last_names):
+    for email, first_name, last_name in zip(email_addresses, first_names, last_names):
         assert first_name in email
         assert last_name in email
 
     # sanity log
     for i in range(10):
-        logging.info(email_adresses[i])
+        logging.info(email_addresses[i])
         logging.info(roles[i])
         logging.info(timestamps[i])
     logging.info("")
@@ -215,16 +215,120 @@ def test_gen_dummydata_messages():
     pass
 
 
-def test_gen_dummydata_payment_methods():
-    pass
+from unittest.mock import patch, MagicMock
+import datetime
+import random
+import pytest
+
+import src.db.gen_seed_data as gen
 
 
-def test_gen_dummydata_credit_cards():
-    pass
+# ---------------------------------------------------------------------------
+# PAYMENT METHODS
+# ---------------------------------------------------------------------------
+@patch("src.db.gen_seed_data.db_connection")
+@patch("src.db.gen_seed_data._fetch_table_ids")
+def test_gen_dummydata_payment_methods(fetch_ids_mock, conn_mock):
+    # Mock account ids
+    fetch_ids_mock.return_value = [1, 2, 3]
+
+    # Mock DB connection + cursor
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    conn_mock.return_value = mock_conn
+
+    # Run
+    gen.gen_dummydata_payment_methods()
+
+    # Assert DROP executed
+    assert mock_cursor.execute.call_count >= 1
+
+    # Assert executemany was called
+    mock_cursor.executemany.assert_called_once()
+
+    # Extract argument passed to executemany
+    args, kwargs = mock_cursor.executemany.call_args
+    _, rows_iterable = args
+    rows = list(rows_iterable)
+
+    # Basic shape checks
+    assert all(len(row) == 3 for row in rows)     # (id, method, timestamp)
+    assert all(row[1] in ["card", "paypal"] for row in rows)
+    assert all(isinstance(row[2], datetime.datetime) for row in rows)
+
+    # Commit + close called
+    mock_conn.commit.assert_called_once()
+    mock_conn.close.assert_called_once()
 
 
-def test_gen_dummydata_paypal():
-    pass
+# ---------------------------------------------------------------------------
+# CREDIT CARDS
+# ---------------------------------------------------------------------------
+@patch("src.db.gen_seed_data.db_connection")
+@patch("src.db.gen_seed_data._fetch_table_ids_where")
+def test_gen_dummydata_credit_cards(fetch_ids_mock, conn_mock):
+    # Mock payment_methods ids
+    fetch_ids_mock.return_value = [10, 20, 30]
+
+    # Mock db
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    conn_mock.return_value = mock_conn
+
+    gen.gen_dummydata_credit_cards()
+
+    # executemany called
+    mock_cursor.executemany.assert_called_once()
+    args, kwargs = mock_cursor.executemany.call_args
+    _, rows_iterable = args
+    rows = list(rows_iterable)
+
+    assert len(rows) == 3
+    for row in rows:
+        assert len(row) == 5            # (id, brand, last4, month, year)
+        assert isinstance(row[2], int)  # last4
+        assert 1 <= row[3] <= 12
+        assert 2023 <= row[4] <= 2053
+
+    mock_conn.commit.assert_called_once()
+    mock_conn.close.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# PAYPAL
+# ---------------------------------------------------------------------------
+@patch("src.db.gen_seed_data.db_connection")
+@patch("src.db.gen_seed_data._fetch_table_ids_where")
+def test_gen_dummydata_paypal(fetch_ids_mock, conn_mock):
+    # Mock IDs
+    fetch_ids_mock.return_value = [101, 102]
+
+    # Mock db
+    mock_conn = MagicMock()
+    mock_cursor = MagicMock()
+    mock_conn.cursor.return_value = mock_cursor
+    conn_mock.return_value = mock_conn
+
+    gen.gen_dummydata_paypal()
+
+    mock_cursor.executemany.assert_called_once()
+
+    args, kwargs = mock_cursor.executemany.call_args
+    _, rows_iterable = args
+    rows = list(rows_iterable)
+
+    assert len(rows) == 2
+
+    for r in rows:
+        payment_method_id, pp_user, email = r
+        assert isinstance(payment_method_id, int)
+        assert pp_user.startswith("PP-")
+        assert "@" in email
+
+    mock_conn.commit.assert_called_once()
+    mock_conn.close.assert_called_once()
 
 
 def test_gen_dummydata_payout_accounts():

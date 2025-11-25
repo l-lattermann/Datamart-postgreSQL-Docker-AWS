@@ -25,6 +25,8 @@ import datetime
 from pathlib import Path
 import sys
 from psycopg2 import sql
+from typing import List
+import string
 
 # ---------------------------------------------------------------------------
 # Third-party / extra imports
@@ -47,6 +49,65 @@ import src.db.sql_repo as sqlrepo
 from src.db.utils.db_helpers import get_tbl_contents_as_str
 from src.utils.logger import logger
 
+
+# ---------------------------------------------------------------------------
+# HELPER FUNCTIONS
+# ---------------------------------------------------------------------------
+def _fetch_table_ids(tbl_name: str)-> List:
+    # Open connection
+    conn = db_connection()
+    cur = conn.cursor()
+    
+    # Get Id column name
+    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, (tbl_name,))
+    id_column_name = cur.fetchall()
+    id_column_name = id_column_name[0][0] # Unpack list of tuples
+
+    # Get ID's with ID colum name
+    query = sql.SQL(sqlrepo.FETCH_IDS).format(
+    col=sql.Identifier(id_column_name),
+    tbl=sql.Identifier(tbl_name)
+    )
+    cur.execute(query)
+    ids = cur.fetchall()
+    ids = [item[0] for item in ids]  # Unpack list of tuples
+
+    # Close connection
+    conn.commit()
+    conn.close()
+
+    return ids
+
+def _fetch_table_ids_where(tbl_name: str, where: str)-> List:
+    # Open connection
+    conn = db_connection()
+    cur = conn.cursor()
+    
+    # Get Id column name
+    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, (tbl_name,))
+    id_column_name = cur.fetchall()
+    id_column_name = id_column_name[0][0] # Unpack list of tuples
+
+    # Get ID's with ID colum name
+    query = sql.SQL(sqlrepo.FETCH_IDS_WHERE).format(
+    col=sql.Identifier(id_column_name),
+    tbl=sql.Identifier(tbl_name),
+    where=sql.SQL(where) 
+    )
+    cur.execute(query)
+    ids = cur.fetchall()
+    ids = [item[0] for item in ids]  # Unpack list of tuples
+
+    # Close connection
+    conn.commit()
+    conn.close()
+
+    return ids
+
+
+def random_string(n=8):
+    return "".join(random.choice(string.ascii_letters + string.digits) for _ in range(n))
+
 # ---------------------------------------------------------------------------
 # ACCOUNTS
 # ---------------------------------------------------------------------------
@@ -63,7 +124,7 @@ def gen_dummydata_accounts():
         name = ""
         syllable_ammount = random.randint(seeds.fn_min_sylls, seeds.fn_max_sylls)
         for _ in range(syllable_ammount):
-            name += random.choice(seeds.first_name_syllables)
+            name += random.choice(seeds.first_name_sylls)
         first_names.append(name)
 
     # last names
@@ -72,7 +133,7 @@ def gen_dummydata_accounts():
         name = ""
         syllable_ammount = random.randint(seeds.ln_min_sylls, seeds.ln_max_sylls)
         for _ in range(syllable_ammount):
-            name += random.choice(seeds.last_name_syllables)
+            name += random.choice(seeds.last_name_sylls)
         last_names.append(name)
 
     # email addresses
@@ -96,10 +157,10 @@ def gen_dummydata_accounts():
     time_delta = seeds.stop_timestamp - seeds.start_timestamp
     timestamps = []
     for _ in range(seeds.num_gen_dummydata):
-        random_time_step = datetime.timedelta(
+        time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
-        random_timestamp = seeds.start_timestamp + random_time_step
+        random_timestamp = seeds.start_timestamp + time_step
         timestamps.append(random_timestamp)
 
     # roles
@@ -151,10 +212,10 @@ def gen_dummydata_credentials():
     time_delta = seeds.stop_timestamp - seeds.start_timestamp
     timestamps = []
     for _ in range(seeds.num_gen_dummydata):
-        random_time_step = datetime.timedelta(
+        time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
-        random_timestamp = seeds.start_timestamp + random_time_step
+        random_timestamp = seeds.start_timestamp + time_step
         timestamps.append(random_timestamp)
         password_updated_at.append(random_timestamp)
 
@@ -168,18 +229,9 @@ def gen_dummydata_credentials():
     cur.execute(query)
     
     # Get Id column name
-    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, ('accounts',))
-    id_column_name = cur.fetchall()
-    id_column_name = id_column_name[0][0] # Unpack list of tuples
+    account_ids = _fetch_table_ids('accounts')
 
-    # Get ID's with ID colum name
-    query = sql.SQL(sqlrepo.FETCH_IDS).format(
-    col=sql.Identifier(f'{id_column_name}'),
-    tbl=sql.Identifier('accounts')
-    )
-    cur.execute(query)
-    account_ids = cur.fetchall()
-    account_ids = [item[0] for item in account_ids]  # Unpack list of tuples
+    # Create Data List
     data = zip(account_ids, password_hash, password_updated_at)
     cur.executemany(sqlrepo.INSERT_CREDENTIALS, data)
     conn.commit()
@@ -275,7 +327,7 @@ def gen_dummydata_accommodations():
 
     # Get ID's with ID colum name
     query = sql.SQL(sqlrepo.FETCH_HOST_IDS).format(
-    col=sql.Identifier(f'{id_column_name}'),
+    col=sql.Identifier(id_column_name),
     tbl=sql.Identifier('accounts')
     )
     cur.execute(query)
@@ -297,20 +349,8 @@ def gen_dummydata_accommodations():
         titles.append(" ".join(title))
         print(title)
     
-    # address_id
-    # Get Id column name from accounts table
-    cur.execute(sqlrepo.FETCH_ID_COLUMN_NAME, ('addresses',))
-    id_column_name = cur.fetchall()
-    id_column_name = id_column_name[0][0] # Unpack list of tuples
-
-    # Get ID's with ID colum name
-    query = sql.SQL(sqlrepo.FETCH_IDS).format(
-    col=sql.Identifier(f'{id_column_name}'),
-    tbl=sql.Identifier('addresses')
-    )
-    cur.execute(query)
-    address_ids = cur.fetchall()
-    address_ids = [item[0] for item in address_ids]  # Unpack list of tuples
+    # Get Id column name from addresses table
+    address_ids = _fetch_table_ids('addresses')
 
     # prices
     for _ in range(seeds.num_gen_dummydata):
@@ -324,10 +364,10 @@ def gen_dummydata_accommodations():
     # created_at
     time_delta = seeds.stop_timestamp - seeds.start_timestamp
     for _ in range(seeds.num_gen_dummydata):
-        random_time_step = datetime.timedelta(
+        time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
-        random_timestamp = seeds.start_timestamp + random_time_step
+        random_timestamp = seeds.start_timestamp + time_step
         created_at.append(random_timestamp)
 
     # Insert data into SQL table
@@ -368,10 +408,10 @@ def gen_dummydata_images():
 
         # timestamp
         time_delta = seeds.stop_timestamp - seeds.start_timestamp
-        random_time_step = datetime.timedelta(
+        time_step = datetime.timedelta(
             seconds=random.randint(0, int(time_delta.total_seconds()))
         )
-        random_timestamp = seeds.start_timestamp + random_time_step
+        random_timestamp = seeds.start_timestamp + time_step
         created_at.append(random_timestamp)
 
         # storage key
@@ -398,6 +438,137 @@ def gen_dummydata_images():
 
     return mimes, storage_keys, created_at
 
+# ---------------------------------------------------------------------------
+# PAYMENT METHODS
+# ---------------------------------------------------------------------------
+def gen_dummydata_payment_methods():
+    """
+    Fill dummy data for payment_methods table.
+    """
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Clear existing data
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('payment_methods'))
+    cur.execute(query)
+    
+    # Get account ids
+    account_ids = _fetch_table_ids('accounts')
+
+    # Create data list to insert later 
+    data = [[],[],[]]
+
+    # Create random ammount of payment methods per account
+    for id in account_ids:
+        payment_method_count = random.choice([1,2,3])
+        method_types = ['card', 'paypal']
+        methods_per_acc = [random.choice(method_types) for _ in range(payment_method_count)]
+        for method in methods_per_acc:
+            # Generate random timestamp
+            time_delta = seeds.stop_timestamp - seeds.start_timestamp
+            time_step = datetime.timedelta(
+            seconds=random.randint(0, int(time_delta.total_seconds()))
+            )
+            random_timestamp = seeds.start_timestamp + time_step
+            # Append all data
+            data[0].append(id)
+            data[1].append(method)
+            data[2].append(random_timestamp)
+
+    # Finally insert the data
+    if (len(data[0])== len(data[1]) and len(data[1]) == len(data[2])):
+        data = zip(data[0], data[1], data[2])
+        cur.executemany(sqlrepo.INSERT_PAYMENT_METHODS, data)
+    else: print("gen_dummydata_payment_methods(): data has not euqal length")
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into payment_methods table:")
+    logger.info(get_tbl_contents_as_str('payment_methods'))
+
+def gen_dummydata_credit_cards():
+    """
+    Fill dummy data for credit_cards table.
+    """
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Clear existing data
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('credit_cards'))
+    cur.execute(query)
+    
+    # Get Id column name
+    card_ids = _fetch_table_ids_where(tbl_name='payment_methods', where="type = 'card'")
+    brand = [random.choice(seeds.card_brands) for _ in card_ids]
+    last4 = [random.randint(100,999) for _ in card_ids]
+    exp_month = [random.randint(1,12) for _ in card_ids]
+    exp_year = [random.randint(2023,2053) for _ in card_ids]
+    
+    # Zip data 
+    data = zip(card_ids, brand, last4, exp_month, exp_year)
+
+    # Finally insert the data
+    cur.executemany(sqlrepo.INSERT_CREDIT_CARDS, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into credit_cards table:")
+    logger.info(get_tbl_contents_as_str('credit_cards'))
+
+def gen_dummydata_paypal():
+    """
+    Fill dummy data for paypal table.
+    """
+    # Insert data into SQL table
+    conn = db_connection()
+    cur = conn.cursor()
+
+    # Clear existing data
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('paypal'))
+    cur.execute(query)
+    
+    # Get Id column name
+    paypal_ids = _fetch_table_ids_where(tbl_name='payment_methods', where="type = 'paypal'")
+    paypal_user_id = [f"PP-{random_string(n=8)}" for _ in paypal_ids]
+    
+    # email addresses
+    emails = set()
+    counter = 0
+    while counter < len(paypal_ids):
+        email_address = (
+            "".join(random.choice(seeds.first_name_sylls) for _ in range(random.randint(1,3)))
+            + "."
+            + "".join(random.choice(seeds.last_name_sylls) for _ in range(random.randint(1,3)))
+            + "@"
+            + random.choice(seeds.email_domains)
+        )
+        if email_address not in emails:
+            emails.add(email_address)
+            counter += 1
+        else:
+            continue
+    
+    """
+        id SERIAL PRIMARY KEY,
+    payment_method_id INT UNIQUE REFERENCES payment_methods(id) ON DELETE CASCADE,
+    paypal_user_id VARCHAR(100) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL
+    """
+    # Zip data 
+    data = zip(paypal_ids, paypal_user_id, emails)
+
+    # Finally insert the data
+    cur.executemany(sqlrepo.INSERT_PAYPAL, data)
+    conn.commit()
+    conn.close()
+
+    # Test and log
+    logger.info("Sample data inserted into paypal table:")
+    logger.info(get_tbl_contents_as_str('paypal'))
 
 # ---------------------------------------------------------------------------
 # STUBS FOR REMAINING TABLES
@@ -417,13 +588,11 @@ def gen_dummydata_accommodation_calendar():
 
     return days, is_blocked, price_cents, min_nights
 
-
 def gen_dummydata_payments():
     """
     Fill dummy data for payments table.
     """
     pass
-
 
 def gen_dummydata_bookings():
     """
@@ -431,13 +600,11 @@ def gen_dummydata_bookings():
     """
     pass
 
-
 def gen_dummydata_reviews():
     """
     Fill dummy data for reviews table.
     """
     pass
-
 
 def gen_dummydata_review_images():
     """
@@ -445,13 +612,11 @@ def gen_dummydata_review_images():
     """
     pass
 
-
 def gen_dummydata_conversations():
     """
     Fill dummy data for conversations table.
     """
     pass
-
 
 def gen_dummydata_messages():
     """
@@ -459,41 +624,17 @@ def gen_dummydata_messages():
     """
     pass
 
-
-def gen_dummydata_payment_methods():
-    """
-    Fill dummy data for payment_methods table.
-    """
-    pass
-
-
-def gen_dummydata_credit_cards():
-    """
-    Fill dummy data for credit_cards table.
-    """
-    pass
-
-
-def gen_dummydata_paypal():
-    """
-    Fill dummy data for paypal table.
-    """
-    pass
-
-
 def gen_dummydata_payout_accounts():
     """
     Fill dummy data for payout_accounts table.
     """
     pass
 
-
 def gen_dummydata_payouts():
     """
     Fill dummy data for payouts table.
     """
     pass
-
 
 def gen_dummydata_notifications():
     """
@@ -513,9 +654,15 @@ gen_dummydata_credentials()
 gen_dummydata_addresses()
 gen_dummydata_accommodations()
 gen_dummydata_images()
+gen_dummydata_payment_methods()
+gen_dummydata_credit_cards()
+gen_dummydata_paypal()
 
 get_tbl_contents_as_str('accounts')
 get_tbl_contents_as_str('credentials')
 get_tbl_contents_as_str('addresses')
 get_tbl_contents_as_str('accommodations')
 get_tbl_contents_as_str('images')
+get_tbl_contents_as_str('payment_methods')
+get_tbl_contents_as_str('credit_cards')
+get_tbl_contents_as_str('paypal')

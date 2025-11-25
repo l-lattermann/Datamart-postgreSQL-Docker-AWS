@@ -37,7 +37,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Internal imports
 # ---------------------------------------------------------------------------
 from src.db.connection import db_connection, check_connection
-from src.db.utils.db_introspect import get_db_schema
+from src.db.utils.db_introspect import fetch_db_schema_DfOutput
 from src.utils.logger import logger
 
 
@@ -86,7 +86,7 @@ def main():
     conn.close()
 
     # run schema introspection at the end
-    get_db_schema()
+    fetch_db_schema_DfOutput()
 
 
 # ---------------------------------------------------------------------------

@@ -137,7 +137,7 @@ city_address_terms = {
 # ============================================================
 
 # first-name building blocks
-first_name_syllables = [
+first_name_sylls = [
     "roxy",
     "lola",
     "ruby",
@@ -172,7 +172,7 @@ first_name_syllables = [
 fn_min_sylls, fn_max_sylls = 1, 1
 
 # last-name building blocks
-last_name_syllables = [
+last_name_sylls = [
     "wig",
     "gle",
     "pants",
@@ -318,3 +318,17 @@ image_mimes = [
 # ============================================================
 # how many days ahead to generate calendar entries
 calendar_look_ahead = 365
+
+# ============================================================
+# CREDIT CARD BRANDS
+# ============================================================
+card_brands = [
+    "Visa",
+    "Mastercard",
+    "American Express",
+    "Discover",
+    "JCB",
+    "Diners Club",
+    "UnionPay",
+    "Maestro",
+]
