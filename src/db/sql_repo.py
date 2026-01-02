@@ -65,41 +65,62 @@ FETCH_ID_COLUMN_NAME = """
 
 
 # 3. Retrieve ID's
-
 FETCH_IDS = """
     SELECT {col}
     FROM {tbl}
-    """
+"""
 
 
 # 4. Retrieve host account ID's
-
 FETCH_HOST_IDS = """
     SELECT id
     FROM accounts
     WHERE role = 'host';
-    """
+"""
 
 FETCH_GUEST_IDS = """
     SELECT id
     FROM accounts
     WHERE role = 'guest';
-    """
+"""
+
+FETCH_FIRST_PAYMENTMETHOD_ID_FOR_USER = """
+    SELECT id
+    FROM payment_methods
+    WHERE customer_id = %s
+    ORDER BY id
+    LIMIT 1;
+"""
+
+FETCH_PAYMENT_ID_FOR_USER = """
+    SELECT id
+    FROM payments
+    WHERE customer_id = %s;
+"""
+
+FETCH_IMAGE_IDS_FROM_REVIEW_IMGS = """
+    SELECT image_id
+    FROM review_images;
+"""
 
 
 # 5. Retrieve table ID's with where condition
-
 FETCH_IDS_WHERE = """
     SELECT {col}
     FROM {tbl}
     WHERE {where};
-    """
+"""
 FETCH_IMG_ID_FROM_REVIEW_IMGS = """
     SELECT image_id
     FROM review_images
-    """
-
-# 6. Table-specific INSERT templates (without ID columns)
+"""
+# 6. Get Accomodation prices
+FETCH_ACCOMMODATION_PRICE = """
+    SELECT price_cents
+    FROM accommodations
+    WHERE id = %s;
+"""
+# 7. Table-specific INSERT templates (without ID columns)
 INSERT_PAYOUT_ACCOUNTS = """
     INSERT INTO payout_accounts (host_account_id, type, is_default)
     VALUES (%s, %s, %s);
@@ -184,7 +205,8 @@ INSERT_PAYMENTS = """
         status,
         payment_method_id
     )
-    VALUES (%s, %s, %s, %s);
+    VALUES (%s, %s, %s, %s)
+    RETURNING id;
 """
 
 INSERT_CREDENTIALS = """

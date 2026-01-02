@@ -5,8 +5,10 @@
 CREATE TYPE role AS ENUM ('guest', 'host', 'admin');
 CREATE TYPE payment_method_type AS ENUM ('card', 'paypal');
 CREATE TYPE booking_status AS ENUM ('pending', 'confirmed', 'cancelled', 'completed');
+CREATE TYPE payment_status AS ENUM ('payed', 'open', 'cancelled');
 
 -- CORE TABLES
+-- 1
 CREATE TABLE accounts (
     id SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE,
@@ -16,12 +18,14 @@ CREATE TABLE accounts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 2
 CREATE TABLE credentials (
     account_id INT PRIMARY KEY REFERENCES accounts(id) ON DELETE CASCADE,
     password_hash TEXT NOT NULL,
     password_updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 3 
 CREATE TABLE addresses (
     id SERIAL PRIMARY KEY,
     line1 VARCHAR(255) NOT NULL,
@@ -38,6 +42,7 @@ CREATE TABLE amenities (
     category VARCHAR(50)
 );
 
+-- 4
 CREATE TABLE accommodations (
     id SERIAL PRIMARY KEY,
     host_account_id INT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -48,12 +53,14 @@ CREATE TABLE accommodations (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 5
 CREATE TABLE accommodation_amenities (
     accommodation_id INT NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
     amenity_id INT NOT NULL REFERENCES amenities(id) ON DELETE CASCADE,
     PRIMARY KEY (accommodation_id, amenity_id)
 );
 
+-- 6
 CREATE TABLE images (
     id SERIAL PRIMARY KEY,
     mime VARCHAR(100) NOT NULL,
@@ -61,6 +68,7 @@ CREATE TABLE images (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 7
 CREATE TABLE accommodation_images (
     accommodation_id INT NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
     image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
@@ -71,6 +79,7 @@ CREATE TABLE accommodation_images (
     PRIMARY KEY (accommodation_id, image_id)
 );
 
+-- 8
 CREATE TABLE accommodation_calendar (
     accommodation_id INT NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
     day DATE NOT NULL,
@@ -81,14 +90,16 @@ CREATE TABLE accommodation_calendar (
 );
 
 -- BOOKINGS + REVIEWS
+-- 9
 CREATE TABLE payments (
     id SERIAL PRIMARY KEY,
     customer_id INT REFERENCES accounts(id),
     amount_cents INT CHECK (amount_cents >= 0),
-    status VARCHAR(50),
+    status payment_status NOT NULL,
     payment_method_id INT
 );
 
+-- 10
 CREATE TABLE bookings (
     id SERIAL PRIMARY KEY,
     guest_account_id INT NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
@@ -100,6 +111,7 @@ CREATE TABLE bookings (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 11
 CREATE TABLE reviews (
     id SERIAL PRIMARY KEY,
     accommodation_id INT NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
@@ -109,18 +121,21 @@ CREATE TABLE reviews (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 12
 CREATE TABLE review_images (
     review_id INT NOT NULL REFERENCES reviews(id) ON DELETE CASCADE,
-    k INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
     PRIMARY KEY (review_id, image_id)
 );
 
 -- MESSAGING SYSTEM
+-- 13
 CREATE TABLE conversations (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 14
 CREATE TABLE messages (
     id SERIAL PRIMARY KEY,
     sender_id INT REFERENCES accounts(id) ON DELETE CASCADE,
@@ -132,6 +147,7 @@ CREATE TABLE messages (
 );
 
 -- PAYMENTS + METHODS
+-- 15
 CREATE TABLE payment_methods (
     id SERIAL PRIMARY KEY,
     customer_id INT REFERENCES accounts(id),
@@ -139,6 +155,7 @@ CREATE TABLE payment_methods (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- 16
 CREATE TABLE credit_cards (
     id SERIAL PRIMARY KEY,
     payment_method_id INT UNIQUE REFERENCES payment_methods(id) ON DELETE CASCADE,
@@ -148,6 +165,7 @@ CREATE TABLE credit_cards (
     exp_year INT
 );
 
+-- 17
 CREATE TABLE paypal (
     id SERIAL PRIMARY KEY,
     payment_method_id INT UNIQUE REFERENCES payment_methods(id) ON DELETE CASCADE,
@@ -155,10 +173,12 @@ CREATE TABLE paypal (
     email VARCHAR(255) UNIQUE NOT NULL
 );
 
+-- 18
 ALTER TABLE payments
     ADD FOREIGN KEY (payment_method_id) REFERENCES payment_methods(id) ON DELETE SET NULL;
 
 -- PAYOUTS + NOTIFICATIONS
+-- 19
 CREATE TABLE payout_accounts (
     id SERIAL PRIMARY KEY,
     host_account_id INT REFERENCES accounts(id),
@@ -166,6 +186,7 @@ CREATE TABLE payout_accounts (
     is_default BOOLEAN DEFAULT FALSE
 );
 
+-- 20
 CREATE TABLE payouts (
     id SERIAL PRIMARY KEY,
     host_account_id INT REFERENCES accounts(id),
@@ -176,6 +197,7 @@ CREATE TABLE payouts (
     status VARCHAR(50)
 );
 
+-- 21
 CREATE TABLE notifications (
     id SERIAL PRIMARY KEY,
     account_id INT REFERENCES accounts(id),

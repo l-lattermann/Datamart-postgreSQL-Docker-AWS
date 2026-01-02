@@ -16,8 +16,6 @@ Assumptions:
 - timestamps are generated in a uniform window [start_timestamp, stop_timestamp]
 - number of rows is controlled by seeds.num_gen_dummydata
 """
-
-
 # Stdlib imports
 from random import choice, choices, randint, shuffle, sample
 import datetime
@@ -28,26 +26,20 @@ from typing import List
 import string
 import json
 
-
 # Third-party / extra imports
 import rstr
-import pandas as pd
-
-
 
 # Path/bootstrap
-# Go two levels up if needed (src/db → project root). Keep logic unchanged.
-
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-
 # Internal imports
 import src.db.data_lists as seeds
-from src.db.connection import db_connection  # kept although not used in current funcs
+from src.db.connection import db_connection  
 import src.db.sql_repo as sqlrepo
-from src.db.utils.db_helpers import get_tbl_contents_as_str
+from src.db.utils.db_helpers import get_tbl_contents_as_str, get_tbl_contents_as_str_sorted_by
 from src.utils.logger import logger
+from src.db.utils import db_introspect
 
 
 
@@ -123,8 +115,8 @@ def _gen_dummy_json():
     }
     return json.dumps(json_thing)
 
-
-# ACCOUNTS
+# INSERT THE DATA
+# 1
 def gen_dummydata_accounts():
     """
     Fill dummy data for accounts table.
@@ -196,8 +188,7 @@ def gen_dummydata_accounts():
     # Return for later use
     return emails, first_names, last_names, roles, timestamps
 
-
-# CREDENTIALS
+# 2
 def gen_dummydata_credentials():
     """
     Fill dummy data for credentials table.
@@ -244,9 +235,7 @@ def gen_dummydata_credentials():
 
     return password_hash, password_updated_at
 
-
-
-# ADDRESSES
+# 3
 def gen_dummydata_addresses():
     """
     Fill dummy data for addresses table.
@@ -296,9 +285,7 @@ def gen_dummydata_addresses():
 
     return line1, line2, cities, postal_code, countries
 
-
-
-# ACCOMMODATIONS
+# 4
 def gen_dummydata_accommodations():
     """
     Fill dummy data for accommodations table.
@@ -376,9 +363,7 @@ def gen_dummydata_accommodations():
 
     return titles, price_cents, is_active, created_at
 
-
-
-# IMAGES
+# 5
 def gen_dummydata_images():
     """
     Fill dummy data for images table.
@@ -422,8 +407,7 @@ def gen_dummydata_images():
 
     return mimes, storage_keys, created_at
 
-
-# PAYMENT METHODS
+# 6
 def gen_dummydata_payment_methods():
     """
     Fill dummy data for payment_methods table.
@@ -465,6 +449,7 @@ def gen_dummydata_payment_methods():
     logger.info("Sample data inserted into payment_methods table:")
     logger.info(get_tbl_contents_as_str('payment_methods'))
 
+# 7
 def gen_dummydata_credit_cards():
     """
     Fill dummy data for credit_cards table.
@@ -496,6 +481,7 @@ def gen_dummydata_credit_cards():
     logger.info("Sample data inserted into credit_cards table:")
     logger.info(get_tbl_contents_as_str('credit_cards'))
 
+# 8
 def gen_dummydata_paypal():
     """
     Fill dummy data for paypal table.
@@ -541,6 +527,7 @@ def gen_dummydata_paypal():
     logger.info("Sample data inserted into paypal table:")
     logger.info(get_tbl_contents_as_str('paypal'))
 
+# 9
 def gen_dummydata_reviews():
     """
     Fill dummy data for reviews table.
@@ -602,6 +589,7 @@ def gen_dummydata_reviews():
     logger.info("Sample data inserted into reviews table:")
     logger.info(get_tbl_contents_as_str('reviews'))
 
+# 10
 def gen_dummydata_conversations():
     """
     Fill dummy data for conversations table.
@@ -627,6 +615,7 @@ def gen_dummydata_conversations():
     logger.info("Sample data inserted into conversations table:")
     logger.info(get_tbl_contents_as_str('conversations'))
 
+# 11
 def gen_dummydata_messages():
     """
     Fill dummy data for messages table.
@@ -659,7 +648,7 @@ def gen_dummydata_messages():
         message_partners.append((choice(host_ids), choice(guest_ids), conv_id))
 
     for partner in message_partners:
-        conv_length = randint(1,15)
+        conv_length = randint(1,10)
         start_time = datetime.datetime.fromisoformat(_gen_rand_timestamp())
         for i in range(conv_length):
             if i%2 == 0:
@@ -690,6 +679,7 @@ def gen_dummydata_messages():
     logger.info("Sample data inserted into messages table:")
     logger.info(get_tbl_contents_as_str('messages'))
 
+# 12
 def gen_dummydata_review_images():
     """
     Fill dummy data for review_images table.
@@ -733,10 +723,18 @@ def gen_dummydata_review_images():
     logger.info("Sample data inserted into review_images table:")
     logger.info(get_tbl_contents_as_str('review_images'))
 
+# 13
 def gen_dummydata_accommodation_images():
     """
-    Fill dummy data for bookings table.
+    Fill dummy data for accommodation_images table.
     """
+    accommodation_id = []    
+    image_id = []
+    sort_order = []
+    is_cover = []
+    caption = []
+    room_tag = []
+
     # Insert data into SQL table
     conn = db_connection()
     cur = conn.cursor()
@@ -745,36 +743,48 @@ def gen_dummydata_accommodation_images():
     query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('accommodation_images'))
     cur.execute(query)
     
-    # Get account ids
+    # Get image ids
+    image_ids = _fetch_table_ids('images')
+
+    # Get review image ids
     query = sqlrepo.FETCH_IMG_ID_FROM_REVIEW_IMGS
     cur.execute(query)
-    review_img_ids = cur.fetchall()
-    image_ids = _fetch_table_ids('images')
-    accomodation_ids = _fetch_table_ids('accommodations')
-    available = [x for x in image_ids if x not in review_img_ids]
-
-    accommodation_id = []
-    image_id = []
-    sort_order = []
-    is_cover = []
-    caption = []
-    room_tag = []
-
-    for img in available:
-        accommodation_id.append(choice(accomodation_ids))
-        image_id.append(img) 
-        sort_order.append(randint(1,8)) 
-        is_cover.append(choice([True, False])) 
-        caption.append(
-                " ".join([
-                choice(seeds.christmas_gibberish_words) for _ in range(randint(1,4))
-                ]))
-        room_tag.append(choice(seeds.room_tags)) 
-        
+    rew_img_ids = cur.fetchall()
     
-            
+    # Get the available ids
+    available_img_ids = list(set(image_ids) - set(rew_img_ids))
+
+    # Get accommodation ids
+    accommodation_ids = _fetch_table_ids('accommodations')
+    shuffle(accommodation_ids)
+
+    counter = 0
+    for id in accommodation_ids:
+        imgs_per_accomodation = randint(2,5)
+        if counter + imgs_per_accomodation > len(available_img_ids):
+            imgs_per_accomodation = len(available_img_ids) - counter
+        for x in range(imgs_per_accomodation):
+            accommodation_id.append(id)
+            image_id.append(available_img_ids[counter + x])
+            sort_order.append(x)
+            if x == 0:
+                is_cover.append(True)
+            else:
+                is_cover.append(False)
+            caption_text = choice(seeds.christmas_accommodation_reviews["openings"]["positive"])
+            caption.append(caption_text)
+            room_tag.append(choice(seeds.room_tags))
+        counter += imgs_per_accomodation
+        
     # Zip data 
-    data = zip(accommodation_id, image_id, sort_order, is_cover, caption, room_tag)
+    data = zip(
+        accommodation_id,
+        image_id,
+        sort_order,
+        is_cover,
+        caption,
+        room_tag
+    )
 
     # Finally insert the data
     cur.executemany(sqlrepo.INSERT_ACCOMMODATION_IMAGES, data)
@@ -783,8 +793,18 @@ def gen_dummydata_accommodation_images():
 
     # Test and log
     logger.info("Sample data inserted into accommodation_images table:")
-    logger.info(get_tbl_contents_as_str('accommodation_images'))
+    logger.info(get_tbl_contents_as_str_sorted_by('accommodation_images',sort_by="accommodation_id"))
 
+    """
+    accommodation_id INT NOT NULL REFERENCES accommodations(id) ON DELETE CASCADE,
+    image_id INT NOT NULL REFERENCES images(id) ON DELETE CASCADE,
+    sort_order INT,
+    is_cover BOOLEAN DEFAULT FALSE,
+    caption VARCHAR(255),
+    room_tag VARCHAR(100),
+    """
+
+# 14
 def gen_dummydata_notifications():
     """
     Fill dummy data for notifications table.
@@ -821,6 +841,7 @@ def gen_dummydata_notifications():
     logger.info("Sample data inserted into notifications table:")
     logger.info(get_tbl_contents_as_str('notifications'))
 
+# 15
 def gen_dummydata_payout_accounts():
     """
     Fill dummy data for payout_accounts table.
@@ -863,57 +884,126 @@ def gen_dummydata_payout_accounts():
 
     # Test and log
     logger.info("Sample data inserted into payout_accounts table:")
-    logger.info(get_tbl_contents_as_str('payout_accounts'))
+    logger.info(get_tbl_contents_as_str('payout_accounts'))#
 
-def gen_dummydata_payments():
+# 16 +17
+def gen_dummydata_bookings_and_payments():
     """
-    Fill dummy data for payments table.
+    Fill dummy data for bookings table.
     """
+    guest_account_ids = []
+    accommodation_ids = []
+    start_dates = []
+    end_dates = []
+    payment_ids = []
+    statuses = []
+    created_ats = []
+
     # Insert data into SQL table
     conn = db_connection()
     cur = conn.cursor()
 
     # Clear existing data
-    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('payout_accounts'))
+    query = sql.SQL(sqlrepo.DROP_ALL_TABLE_DATA).format(sql.Identifier('bookings'))
     cur.execute(query)
     
-    # Get account ids
+    # Get guest account ids
     query = sqlrepo.FETCH_GUEST_IDS
     cur.execute(query)
-    guest_ids = cur.fetchall()
+    guest_account_ids = cur.fetchall()
 
-    customer_id = []
-    amount_cents = []
-    status = []
-    payment_method_id = []
+    # Get guest account ids
+    accommodation_ids = _fetch_table_ids('accommodations')
 
+    for accommodation_id in accommodation_ids:
+        create_booking = choice([True, False])
+        if create_booking:
+            # Generate random timestamp max 14 days before last date
+            start_date = None
+            while True:
+                start_date = _gen_rand_timestamp()
+                start_date = datetime.datetime.fromisoformat(start_date)
+                if start_date < (seeds.stop_timestamp - datetime.timedelta(days=14)):
+                    break
+            
+            # Select start and end date
+            duration = randint(1,14)
+            end_date = start_date + datetime.timedelta(days=duration)
+
+            # Get accommodation price per night
+            querry = sqlrepo.FETCH_ACCOMMODATION_PRICE
+            cur.execute(querry, (accommodation_id,))
+            accommodation_price = cur.fetchone()
+
+            # Calculate total payment ammount
+            amount_cents = accommodation_price[0] * duration
+
+            # Select guest id for booking
+            guest_id = choice(guest_account_ids)
+
+            # Create payment and insert it 
+            customer_id = guest_id[0]
+            status = choice(['payed', 'open', 'cancelled'])
+
+            # Get payment method where user id
+            while True:
+                querry = sqlrepo.FETCH_FIRST_PAYMENTMETHOD_ID_FOR_USER
+                cur.execute(querry, (guest_id,))
+                payment_method = cur.fetchone()
+                if payment_method:
+                    break
+            
+            # Insert payment
+            data = (customer_id, amount_cents, status, payment_method[0])
+            cur.execute(sqlrepo.INSERT_PAYMENTS, data)
+            payment_id = cur.fetchone()[0]
+
+            # Create booking status
+            booking_status = choice(['pending', 'confirmed', 'cancelled', 'completed'])
+
+            while True:
+                time_stamp = _gen_rand_timestamp()
+                if datetime.datetime.fromisoformat(time_stamp) < start_date:
+                    break
+            
+            guest_account_ids.append(guest_id)
+            accommodation_ids.append(accommodation_id)
+            start_dates.append(start_date)
+            end_dates.append(end_date)
+            payment_ids.append(payment_id)
+            statuses.append(booking_status)
+            created_ats.append(time_stamp)
+            
     # Zip data 
-    data = zip(host_account_id, type, is_default)
+    data = zip(
+                guest_account_ids, 
+                accommodation_ids, 
+                start_dates, 
+                end_dates, 
+                payment_ids, 
+                statuses, 
+                created_ats
+            )
 
     # Finally insert the data
-    cur.executemany(sqlrepo.INSERT_PAYOUT_ACCOUNTS, data)
+    cur.executemany(sqlrepo.INSERT_BOOKINGS, data)
     conn.commit()
     conn.close()
 
     # Test and log
-    logger.info("Sample data inserted into payout_accounts table:")
-    logger.info(get_tbl_contents_as_str('payout_accounts'))
-    """
-    id SERIAL PRIMARY KEY,
-    customer_id INT REFERENCES accounts(id),
-    amount_cents INT CHECK (amount_cents >= 0),
-    status VARCHAR(50),
-    payment_method_id INT
-    """
+    logger.info("Sample data inserted into bookings table:")
+    logger.info(get_tbl_contents_as_str('bookings'))
+    logger.info("Sample data inserted into payments table:")
+    logger.info(get_tbl_contents_as_str('payments'))
 
+# 18
 def gen_dummydata_payouts():
     """
     Fill dummy data for payouts table.
     """
     pass
 
-# STUBS FOR REMAINING TABLES
-# Keep stubs to preserve structure. Implement later.
+# 19
 def gen_dummydata_accommodation_calendar():
     """
     Fill dummy data for accommodation_calendar table.
@@ -928,22 +1018,9 @@ def gen_dummydata_accommodation_calendar():
 
     return days, is_blocked, price_cents, min_nights
 
-def gen_dummydata_payments():
-    """
-    Fill dummy data for payments table.
-    """
+# 20
+def gen_dummydata_accommodation_amenities():
     pass
-
-def gen_dummydata_bookings():
-    """
-    Fill dummy data for bookings table.
-    """
-    pass
-
-
-
-
-
 
 
 
@@ -966,37 +1043,29 @@ gen_dummydata_review_images()
 gen_dummydata_accommodation_images()
 gen_dummydata_notifications()
 gen_dummydata_payout_accounts()
+gen_dummydata_bookings_and_payments()
 
-get_tbl_contents_as_str('accounts')
-get_tbl_contents_as_str('credentials')
-get_tbl_contents_as_str('addresses')
-get_tbl_contents_as_str('accommodations')
-get_tbl_contents_as_str('images')
-get_tbl_contents_as_str('payment_methods')
-get_tbl_contents_as_str('credit_cards')
-get_tbl_contents_as_str('paypal')
-get_tbl_contents_as_str('reviews')
-get_tbl_contents_as_str('conversations')
-get_tbl_contents_as_str('messages')
-get_tbl_contents_as_str('review_images')
-get_tbl_contents_as_str('accommodation_images')
-get_tbl_contents_as_str('notifications')
-get_tbl_contents_as_str('payout_accounts')
 
-conn = db_connection()
-cur = conn.cursor()
-
-query = """
-SELECT *
-FROM accommodation_images
-ORDER BY accommodation_id;
-"""
-cur.execute(query)
-
-result = cur.fetchall()
-df = pd.DataFrame(result)
-
-print(df.to_string())
-print(len(df[1]) == len(set(df[1])))
-
-conn.close()
+# All tables
+[
+'notifications',
+'messages', 
+'payment_methods', 
+'accommodation_amenities', 
+'payout_accounts', 
+'paypal', 
+'addresses', 
+'accommodation_images', 
+'accommodations', 
+'credentials', 
+'payments', 
+'accounts', 
+'images',
+'accommodation_calendar', 
+'bookings', 
+'payouts', 
+'credit_cards', 
+'reviews', 
+'conversations', 
+'review_images'
+]
